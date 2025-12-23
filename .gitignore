@@ -1,4 +1,8 @@
 # Byte-compiled / optimized / DLL files
+# my ignores
+*.yaml
+trash/
+
 __pycache__/
 *.py[codz]
 *$py.class

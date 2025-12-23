@@ -255,30 +255,33 @@ class HaYamlGen :
 def main () :
 
     # Output from Pimironi enviro outdoor weather sensors
+    # edited for readability
     MTTQ_PAYLOAD_TEXT = \
 '''{
 "nickname": "weather_0",
 "uid": "e66164084329b22b",
 "timestamp": "2025-12-18T05:03:41Z",
-"readings": {"temperature": 26.09,
-"humidity": 20.36, "pressure": 1005.18,
-"luminance": 4.65,
-"wind_speed": 0,
-"rain": 0,
-"rain_per_second": 0.0,
-"wind_direction": 135},
+"readings":
+  {"temperature": 26.09,
+  "humidity": 20.36, "pressure": 1005.18,
+  "luminance": 4.65,
+  "wind_speed": 0,
+  "rain": 0,
+  "rain_per_second": 0.0,
+  "wind_direction": 135},
 "model": "weather"}'''
 
     SENSOR_ID = "enviro_weather"
-    VERSION = ""
+    SENSOR_COUNT = 2
 
     gen = HaYamlGen (mqtt_topic="enviro_weather")
 
     #gen.exclude_sensor (["model", "uid"])
-    gen.include_sensor (["model", "uid"])
+    #gen.include_sensor (["model", "uid"])
     gen.load_json_sensor_ids (MTTQ_PAYLOAD_TEXT)
 
-    sensor_ids = gen.build_range_list (sensor_id=SENSOR_ID, count=2)
+    sensor_ids = gen.build_range_list (sensor_id=SENSOR_ID,
+                                        count=SENSOR_COUNT)
 
     gen.generate (sensor_ids)
 
