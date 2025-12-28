@@ -264,7 +264,7 @@ class HaYamlGen :
         self.sensor_id_list [sensor_id]["type"] = MQTT_SENSOR_TEMPLATES [type]
 
     def generate (self, package_items) :
-        print ("gen:", package_items)
+        #print ("gen:", package_items)
         for _, (sensor_id,_) in enumerate (self.sensor_id_list.items()) :  # temporary fix
             self.add_sensor_type (sensor_id)
         for _, package_data in enumerate (package_items) :
