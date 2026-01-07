@@ -2,10 +2,13 @@
 
 from ha_yaml_gen import HaYamlGen
 
-# Output from a test application
+# Output from a test application (raspstats.py)
 # edited for readability
 MTTQ_PAYLOAD_TEXT = \
 '''
+#
+# Load process skips everything up to the first left curly bracket
+#
 {"hostname": "localhost",
 "datetime": "2025-12-24 11:51:17",
 "cpu_temp_min": 39,
@@ -40,18 +43,27 @@ MTTQ_PAYLOAD_TEXT = \
 PACKAGE_ID = "host_stats"
 MQTT_TOPIC_BASE = "hoststats/"
 
-PACKAGE_IDX_START = 3
+PACKAGE_IDX_START = 0
 PACKAGE_COUNT = 1
 
 gen = HaYamlGen (package = PACKAGE_ID ,
                  mqtt_topic_base = MQTT_TOPIC_BASE)
 
-#gen.exclude_sensor (["model", "uid"])
-#gen.include_sensor (["model", "uid"])
-gen.load_json_sensor_ids (MTTQ_PAYLOAD_TEXT)
+if True :
+    gen.exclude_sensor (["cpu_freq_min","cpu_freq_max","cpu_freq_avg"])
+else :
+    gen.include_sensor (["cpu_freq_min","cpu_freq_max","cpu_freq_avg"])
 
-gen.build_range_list (start = PACKAGE_IDX_START ,
-                        count = PACKAGE_COUNT)
+if True :
+    gen.load_json_sensor_ids (MTTQ_PAYLOAD_TEXT)
+else :
+    gen.load_json_sensor_file ("raspstats.json")
+
+if True :
+    gen.build_range_list (start = PACKAGE_IDX_START ,
+                            count = PACKAGE_COUNT)
+else :
+    gen.build_id_list (ids=["mainserver", "backupserver"])
 
 gen.add_card_template ("host_stats.card", "test")
 gen.add_ha_template ("host_stats.tmpl")

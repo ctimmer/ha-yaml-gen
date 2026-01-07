@@ -9,6 +9,7 @@ import psutil
 
 HOSTNAME = socket.gethostname ()
 HOSTID = "host_stats_3"
+HOSTID = "host_stats_backupserver"
 CPU_TEMP_PATH = "/sys/devices/virtual/thermal/thermal_zone0/temp"
 CPU_FREQ_PATH = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
 CPU_TEMP_WARN = None
