@@ -138,12 +138,14 @@ class HaYamlGen :
     def card_pro_sensor_vars (self) : #, suffix="_0") :
         package_id = self.package_data ["package"]
         self.template_variables = {"_PACKAGE_" : package_id}
+        self.template_variables = {"_TIMESTAMP_" : self.package_data ["timestamp"]}
         dest_dict = self.template_variables
         for _, (sensor_name, sensor_data) in enumerate (self.sensor_ids.items ()) :
-            entity = sensor_data ["entity"]
-            dest_dict [sensor_name + "_json"] = "{}.{}".format (package_id, entity)
-            dest_dict [sensor_name] = entity    # json ref
-            entity = "sensor.{}_{}".format (self.package_data ["package"], entity)
+            dest_dict [sensor_name] = sensor_data ["entity"]    # json ref
+            entity = "sensor.{}_{}".format (self.package_data ["package"], sensor_name)
+            # HA sensor values
+            dest_dict [sensor_name + "_value"] = "states('{}')".format (entity)
+            # Card Pro values
             dest_dict [sensor_name + "_ent"] = entity
             dest_dict [sensor_name + "_state"] = '${{states["{}"].state}}'.format (entity)
             dest_dict [sensor_name + "_id"] = '${{states["{}"].entity_id}}'.format (entity)
@@ -195,7 +197,10 @@ class HaYamlGen :
             return sensor_id
         return path + "." + sensor_id
 
-    def load_sensor_ids (self, payload, path="") :
+    def load_sensor_ids (self ,
+                        payload : dict ,
+                        path : str = "" ,
+                        sensor_count : int = 0) :
         #print ("payload:", payload, path)
         for _, (s_id, s_data) in enumerate (payload.items()) :
             # Set sensor code based on data type
@@ -203,37 +208,50 @@ class HaYamlGen :
             if not self.sensor_is_included (sensor_path) :
                 print ("Skipping:", sensor_path)
                 continue
-            new_path = path
-            if len (new_path) > 0 :
-                new_path += "."
+            #new_path = path
+            #if len (new_path) > 0 :
+            #    new_path += "."
             #print ("PARSE: s_id", s_id, s_data)
             if isinstance (s_data, (int, float, bool)) :
-                #if not self.sensor_is_included (self.build_sensor_path (s_id, path)) :
-                #    continue
                 s_id = self.get_unique_id (s_id)
                 self.sensor_ids [s_id] = {
-                    "entity" : new_path + s_id ,
+                    "entity" : sensor_path ,
                     "type" : MQTT_SENSOR_MEASUREMENT    # default
                     }
+                sensor_count += 1
             elif isinstance (s_data, (str, list)) :
-                #if not self.sensor_is_included (s_id) :
-                #    continue
                 s_id = self.get_unique_id (s_id)
                 self.sensor_ids [s_id] = {
-                    "entity" : new_path + s_id ,
+                    "entity" : sensor_path ,
                     "type" : MQTT_SENSOR_BASIC    # default for array
                     }
+                sensor_count += 1
             elif isinstance (s_data, dict) :
-                new_path += s_id
-                #print ("NEW:", new_path)
-                self.load_sensor_ids (s_data, new_path)
+                #new_path += s_id
+                sensor_count = self.load_sensor_ids (s_data,
+                                                    sensor_path,
+                                                    sensor_count)
         #print ("SIDs:", self.sensor_ids)
+        return sensor_count
 
     def load_json_sensor_ids (self, json_text) :
         self.initialize ()
-        json_dict = json.loads (json_text)
-        self.load_sensor_ids (json_dict)
-        #print (self.sensor_ids)
+        start_idx = json_text.find ("{")
+        if start_idx < 0 :
+            print ("JSON text missing: '{'")
+            return 0
+        end_idx = json_text.rfind ("}")
+        if end_idx < 0 :
+            print ("JSON text missing: '}'")
+            return 0
+        json_dict = json.loads (json_text [start_idx:(end_idx + 1)])
+        return self.load_sensor_ids (json_dict)
+
+    def load_json_sensor_file (self, json_file_name) :
+        json_text = None
+        with open (json_file_name, "r") as json_file :
+            json_text = json_file.read ()
+        return self.load_json_sensor_ids (json_text)
 
     def generate (self) :
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -409,7 +427,9 @@ def main () :
     # Output from Pimironi enviro outdoor weather sensors
     # JSON text edited for readability
     JSON_PAYLOAD_TEXT = \
-'''{
+'''
+This should be ignored
+{
 "nickname": "weather_0",
 "uid": "e66164084329b22b",
 "timestamp": "2025-12-18T05:03:41Z",
@@ -427,7 +447,7 @@ def main () :
     PACKAGE_ID = "weather"
     MQTT_PATH_BASE = "enviro/"
     PACKAGE_IDX_START = 0
-    PACKAGE_COUNT = 2
+    PACKAGE_COUNT = 1
 
     gen = HaYamlGen (package = PACKAGE_ID ,
                      mqtt_topic_base = MQTT_PATH_BASE)

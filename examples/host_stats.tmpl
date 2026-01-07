@@ -1,0 +1,37 @@
+    - name: {{_PACKAGE_}} memory critical
+      unique_id: {{_PACKAGE_}}_memory_critical
+      variables:
+        MEM_MIN: '{{mem_avail_min_json}}'
+        MEM_WARN: '{{mem_avail_min_warn_json}}'
+      state: "{{ MEM_MIN < MEM_WARN }}"
+      availability: >
+        "{{ has_value({{ MEM_MIN }})
+          and has_value({{ MEM_WARN }}) }}"
+
+template:
+  - sensor:
+    - name: {{_PACKAGE_}} memory critical
+      unique_id: {{_PACKAGE_}}_memory_critical
+      state: > 
+        {% if states('{{mem_avail_min_ent}}')|is_number 
+          and states('{{mem_avail_min_warn_ent}}')|is_number
+        %}    
+          {{ states('{{mem_avail_min_ent}}') < states('{{mem_avail_min_warn_ent}}') }}
+        {% else %}
+          {{ False }}
+        {% endif %}
+      available: {{ has_value('{{mem_avail_min_ent}}') and has_value('{{mem_avail_min_warn_ent}}') }}
+
+template:
+  - sensor:
+    - name: host_stats_3 memory critical
+      unique_id: host_stats_3_memory_critical
+      state: > 
+        {% if states('sensor.host_stats_3_mem_avail_min')|is_number and
+            states('sensor.host_stats_3_mem_avail_min_warn')|is_number
+        %}    
+          {{ states('sensor.host_stats_3_mem_avail_min') < states('sensor.host_stats_3_mem_avail_min_warn') }}
+        {% else %}
+          {{ False }}
+        {% endif %}
+      available: {{ has_value('sensor.host_stats_3_mem_avail_min') and has_value('sensor.host_stats_3_mem_avail_min_warn') }}

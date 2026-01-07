@@ -1,0 +1,174 @@
+type: horizontal-stack
+cards:
+  - type: custom:config-template-card
+    entities:
+      - {{cpu_temp_min_ent}}
+      - {{cpu_temp_max_ent}}
+      #- sensor.host_stats_3_cpu_temp_min
+      #- sensor.host_stats_3_cpu_temp_max
+    card:
+      type: custom:gauge-card-pro
+      header: CPU Temp
+      value_texts:
+        primary: {{cpu_temp_avg_state}}
+        #primary: ${states["sensor.host_stats_3_cpu_temp_avg"].state}
+        primary_unit: C
+        secondary: {{cpu_temp_max_state}}
+        #secondary: ${states["sensor.host_stats_3_cpu_temp_max"].state}
+        secondary_unit: C
+      entity: {{cpu_temp_avg_id}}
+      #entity: ${states["sensor.host_stats_3_cpu_temp_avg"].entity_id}
+      max: 100
+      min: 0
+      needle: true
+      needle_color: black
+      gradient: false
+      segments:
+        - from: 0
+          color: var(--success-color)
+        - from: 60
+          color: var(--warning-color)
+        - from: 80
+          color: var(--error-color)
+      entity2: {{cpu_temp_max_id}}
+      #entity2: ${states["sensor.host_stats_3_cpu_temp_max"].entity_id}
+      inner:
+        max: 100
+        min: 0
+        mode: static
+        gradient: false
+        segments:
+          - from: 0
+            color: black
+          - from: {{cpu_temp_min_state}}
+          #- from: ${states["sensor.host_stats_3_cpu_temp_min"].state}
+            color: white
+          - from: {{cpu_temp_max_state}}
+          #- from: ${states["sensor.host_stats_3_cpu_temp_max"].state}
+            color: black
+  - type: custom:config-template-card
+    entities:
+      - {{cpu_load_ent}}
+      - {{cpu_load_min_ent}}
+      - {{cpu_load_max_ent}}
+      #- sensor.host_stats_3_cpu_load
+      #- sensor.host_stats_3_cpu_load_min
+      #- sensor.host_stats_3_cpu_load_max
+    card:
+      type: custom:gauge-card-pro
+      header: CPU Load
+      value_texts:
+        primary: {{cpu_load_state}}
+        #primary: ${states["sensor.host_stats_3_cpu_load"].state}
+        primary_unit: "%"
+        secondary: {{cpu_load_max_state}}
+        #secondary: ${states["sensor.host_stats_3_cpu_load_max"].state}
+        secondary_unit: "%"
+      entity: {{cpu_load_id}}
+      #entity: ${states["sensor.host_stats_3_cpu_load"].entity_id}
+      max: 100
+      min: 0
+      needle: true
+      needle_color: black
+      segments:
+        - from: 0
+          color: var(--success-color)
+        - from: 60
+          color: var(--warning-color)
+        - from: 80
+          color: var(--error-color)
+      entity2: {{cpu_load_max_id}}
+      #entity2: ${states["sensor.host_stats_3_cpu_load_max"].entity_id}
+      inner:
+        max: 100
+        min: 0
+        mode: static
+        gradient: false
+        segments:
+          - from: 0
+            color: black
+          - from: {{cpu_load_min_id}}
+          #- from: ${states["sensor.host_stats_3_cpu_load_min"].state}
+            color: white
+          - from: {{cpu_load_max_state}}
+          #- from: ${states["sensor.host_stats_3_cpu_load_max"].state}
+            color: black
+  - type: custom:config-template-card
+    entities:
+      - {{mem_tot_ent}}
+      - {{mem_avail_min_ent}}
+      - {{mem_avail_max_ent}}
+      - {{mem_avail_avg_ent}}
+      #- sensor.host_stats_3_mem_tot
+      #- sensor.host_stats_3_mem_avail_min
+      #- sensor.host_stats_3_mem_avail_max
+      #- sensor.host_stats_3_mem_avail_avg
+    card:
+      type: custom:gauge-card-pro
+      header: Mem Avail
+      entity: {{mem_avail_min_id}}
+      entity2: {{mem_avail_max_id}}
+      #entity: ${states["sensor.host_stats_3_mem_avail_min"].entity_id}
+      #entity2: ${states["sensor.host_stats_3_mem_avail_max"].entity_id}
+      value_texts:
+        primary: {{mem_avail_min_state}}
+        secondary: {{mem_avail_max_state}}
+        #primary: ${states["sensor.host_stats_3_mem_avail_min"].state}
+        #secondary: ${states["sensor.host_stats_3_mem_avail_max"].state}
+        primary_unit: mB
+        secondary_unit: mB
+      max: {{mem_tot_state}}
+      #max: ${states["sensor.host_stats_3_mem_tot"].state}
+      min: 0
+      needle: true
+      needle_color: red
+      segments:
+        - from: 0
+          color: var(--error-color)
+        - from: 2000
+          color: var(--warning-color)
+        - from: 4000
+          color: var(--success-color)
+      secondary:
+        entity: {{mem_avail_max_id}}
+        #entity: ${states["sensor.host_stats_3_mem_avail_max"].entity_id}
+        name: Avail Max
+        needle: true
+        needle_color: blue
+        unit: kB
+  - type: custom:config-template-card
+    entities:
+      - {{disk_total_ent}}
+      - {{disk_used_ent}}
+      - {{disk_warn_level_ent}}
+      - {{disk_critical_level_ent}}
+      #- sensor.host_stats_3_disk_total
+      #- sensor.host_stats_3_disk_used
+      #- sensor.host_stats_3_disk_warn_level
+      #- sensor.host_stats_3_disk_critical_level
+    card:
+      type: custom:gauge-card-pro
+      header: Disk Use
+      entity: {{disk_used_id}}
+      #entity: ${states["sensor.host_stats_3_disk_used"].entity_id}
+      value_texts:
+        primary: {{disk_used_state}}
+        secondary: {{disk_total_state}}
+        #primary: ${states["sensor.host_stats_3_disk_used"].state}
+        #secondary: ${states["sensor.host_stats_3_disk_total"].state}
+        primary_unit: GB
+        secondary_unit: GB
+      max: 2000
+      min: 0
+      needle: true
+      needle_color: red
+      gradient: false
+      segments:
+        - from: 0
+          color: var(--success-color)
+        - from: {{disk_warn_level_state}}
+        #- from: ${states["sensor.host_stats_3_disk_warn_level"].state}
+          color: var(--warning-color)
+        - from: {{disk_critical_level_state}}
+        #- from: ${states["sensor.host_stats_3_disk_critical_level"].state}
+          color: var(--error-color)
