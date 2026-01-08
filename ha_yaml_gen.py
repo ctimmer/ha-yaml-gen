@@ -288,7 +288,7 @@ class HaYamlGen :
         #yaml_file = open (yaml_file_name, "w")
         with io.StringIO (MQTT_SENSOR_HEADERS) as t_buff :
             for t_line in t_buff :
-                out_line = self.render_template (t_line, self.package_data)
+                out_line = self.render_template_line (t_line, self.package_data)
                 yaml_file.write (out_line)
         for _, (sensor_id,_) in enumerate (self.sensor_id_list.items()) :
             sensor_vars = {
@@ -300,12 +300,12 @@ class HaYamlGen :
             sensor_template = self.template_variables [sensor_id + "_type"]
             with io.StringIO (sensor_template) as s_buff :
                 for sensor_line in s_buff :
-                    out_line = self.render_template (sensor_line, sensor_vars)
+                    out_line = self.render_template_line (sensor_line, sensor_vars)
                     yaml_file.write (out_line)
 
-    def render_template (self ,
+    def render_template_line (self ,
                         template : str ,
-                        template_vars : dict) -> str :
+                        template_vars : dict = {}) -> str :
         # Template variable substitution function
         def handle_variable (match) :
             var_name = match.group(0)[2:][:-2]  # strip leading '{{' and ending '}}'
@@ -329,22 +329,14 @@ class HaYamlGen :
         self.sensor_id_list [sensor_id]["type"] = MQTT_SENSOR_TEMPLATES [type]
 
     def add_ha_template (self,
-                           template_file_name,
-                           suffix = "") :
+                           template_file_name) :
         template_text = None
-        ''' Not needed?
-        suffix = suffix
-        if len (suffix) > 0 :
-            if suffix [0:1] != "_" :
-                suffix = "_" + suffix
-        '''
         with open (template_file_name, "r") as t_file :
             template_text = t_file.read ()
         if self.ha_templates is None :
             self.ha_templates = []
         self.ha_templates.append ({
             "text" : template_text
-            #"suffix" : suffix           # this is not needed?
             })
         #pprint.pprint (self.ha_templates)
         
@@ -354,12 +346,12 @@ class HaYamlGen :
         #print ("#######", self.package_data)
         with io.StringIO (TEMPLATE_SENSOR_HEADERS) as t_buff :
             for t_line in t_buff :
-                out_line = self.render_template (t_line, self.package_data)
+                out_line = self.render_template_line (t_line, self.package_data)
                 yaml_file.write (out_line)
         for ha_idx, ha_data in enumerate (self.ha_templates) :
             with io.StringIO (ha_data["text"]) as t_buff :
                 for t_line in t_buff :
-                    out_line = self.render_template (t_line, self.template_variables)
+                    out_line = self.render_template_line (t_line, self.template_variables)
                     yaml_file.write (out_line)
             yaml_file.write ("###### End Templates ######\n")
 
@@ -385,12 +377,12 @@ class HaYamlGen :
         if self.card_templates is None :
             return
         for card_idx, card_data in enumerate (self.card_templates) :
-            card_file_name = package_id + "_card" + card_data["suffix"] + ".txt"
+            card_file_name = package_id + "_card" + card_data["suffix"] + ".yaml"
             #print (card_file_name)
             with open (card_file_name, "w") as out_file :
                 with io.StringIO(card_data["text"]) as t_buff :
                     for card_line in t_buff :
-                        out_line = self.render_template (card_line, self.template_variables)
+                        out_line = self.render_template_line (card_line, self.template_variables)
                         out_file.write (out_line)
 
     def build_range_list (self, start = 0, count = 1) :
@@ -416,7 +408,7 @@ def main () :
     # JSON text edited for readability
     JSON_PAYLOAD_TEXT = \
 '''
-This should be ignored
+This will be ignored, use for documentation
 {
 "nickname": "weather_0",
 "uid": "e66164084329b22b",
@@ -435,7 +427,7 @@ This should be ignored
     PACKAGE_ID = "weather"
     MQTT_PATH_BASE = "enviro/"
     PACKAGE_IDX_START = 0
-    PACKAGE_COUNT = 1
+    PACKAGE_COUNT = 2
 
     gen = HaYamlGen (package = PACKAGE_ID ,
                      mqtt_topic_base = MQTT_PATH_BASE)
@@ -444,11 +436,11 @@ This should be ignored
     #gen.include_sensor (["model", "uid", "readings", "readings.temperature"])
     gen.load_json_sensor_ids (JSON_PAYLOAD_TEXT)
 
-    if True :
+    if False :
         gen.build_range_list (start = PACKAGE_IDX_START,
                                 count = PACKAGE_COUNT)
     else :
-        gen.build_id_list (ids=["kitchen", "bedroom"])
+        gen.build_id_list (ids=["backdoor", "garage"])
 
     gen.generate ()
 
