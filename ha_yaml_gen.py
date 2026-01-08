@@ -162,13 +162,15 @@ class HaYamlGen :
         # Add sensor id(s) to exclude list
         sensor_list = None
         if isinstance (sensor_ids, str) :
-            sensor_list = [sensor_ids]
+            sensor_list = [sensor_ids]          # string input
         elif isinstance (sensor_ids, list) :
-            sensor_list = sensor_ids
+            sensor_list = sensor_ids            # list input
         else :
-            # handle error
+            # handle error?
             return 0
         for _, sensor_id in enumerate (sensor_list) :
+            sensor_elements = sensor_id.split (".")
+            sensor_id = sensor_elements [-1]    # only test the last element
             if sensor_id in self.sensor_exclude_list :
                 continue
             self.sensor_exclude_list.append (sensor_id)
@@ -186,9 +188,12 @@ class HaYamlGen :
         if self.sensor_include_list is None :
             self.sensor_include_list = []
         for _, sensor_id in enumerate (sensor_list) :
-            if sensor_id in self.sensor_include_list :
-                continue
-            self.sensor_include_list.append (sensor_id)
+            sensor_elements = sensor_id.split (".")
+            for _, element in enumerate (sensor_elements) :
+                if element in self.sensor_include_list :
+                    continue
+                self.sensor_include_list.append (element)
+        print (self.sensor_include_list)
 
     def sensor_is_included (self,
                             sensor_id : str) -> bool :
@@ -212,7 +217,7 @@ class HaYamlGen :
         for _, (s_id, s_data) in enumerate (payload.items()) :
             # Set sensor code based on data type
             sensor_path = self.build_sensor_path (s_id, path)
-            if not self.sensor_is_included (sensor_path) :
+            if not self.sensor_is_included (s_id) :
                 print ("Skipping:", sensor_path)
                 continue
             # Handle number and booleans
@@ -243,6 +248,7 @@ class HaYamlGen :
 
     def load_json_sensor_ids (self, json_text) :
         self.initialize ()
+        # Strip leading/trailing text (documentation)
         start_idx = json_text.find ("{")
         if start_idx < 0 :
             print ("JSON text missing: '{'")
@@ -251,7 +257,11 @@ class HaYamlGen :
         if end_idx < 0 :
             print ("JSON text missing: '}'")
             return 0
-        json_dict = json.loads (json_text [start_idx:(end_idx + 1)])
+        try :
+            json_dict = json.loads (json_text [start_idx:(end_idx + 1)])
+        except :
+            print ("JSON parse error")
+            return None
         return self.load_sensor_ids (json_dict)
 
     def load_json_sensor_file (self, json_file_name) :
@@ -433,10 +443,10 @@ This will be ignored, use for documentation
                      mqtt_topic_base = MQTT_PATH_BASE)
 
     #gen.exclude_sensor (["model", "uid", "readings.luminance"])
-    #gen.include_sensor (["model", "uid", "readings", "readings.temperature"])
+    #gen.include_sensor (["model", "uid", "readings.temperature"])
     gen.load_json_sensor_ids (JSON_PAYLOAD_TEXT)
 
-    if False :
+    if True :
         gen.build_range_list (start = PACKAGE_IDX_START,
                                 count = PACKAGE_COUNT)
     else :

@@ -9,6 +9,8 @@ Generate multiple sensor code from sample sensor output JSON text.
 ### Creating the class object
 
 ```python
+from ha_yaml_gen import HaYamlGen
+
 PACKAGE_ID = "weather"
 MQTT_PATH_BASE = "enviro/"
 
@@ -17,6 +19,16 @@ gen = HaYamlGen (package = PACKAGE_ID ,
 ```
 
 __package__
+
+This ID will be used to generate
+- Sensor names
+- Sensor unique id's
+- Sensor state topics
+
+__mqtt_topic_base__
+- This ID and the package id are used to create the sensors "state_topic"
+- Example: state_topic: "enviro/weather_0"
+
 ### Loading the JSON payload
 
 ```python
@@ -48,6 +60,8 @@ __JSON_PAYLOAD_TEXT__
 This is a copy of the json payload sent from the mqtt publisher application.
 The object id's are used to build the HA sensor id's.
 The id value affects the HA sensor parameters.
+
+exclude_sensor and include_sensor must be called before this function.
 
 The JSON example is from a Pimoroni enviro outdoor. [^outdoorconfig]
 
@@ -115,6 +129,16 @@ mqtt:
 ```python
 gen.generate ()
 ```
+
+## Templates and Cards
+
+|template variable|Substitute value|
+|-|-|
+|temperature|readings.temperature|
+|temperature_ent|sensor.weather_0_temperature|
+|temperature_id|${states["sensor.weather_0_temperature"].entity_id}|
+|temperature_state|${states["sensor.weather_0_temperature"].state}|
+|temperature_value|states('sensor.weather_0_temperature')|
 
 ## Notes:
 - Not ready for general release.

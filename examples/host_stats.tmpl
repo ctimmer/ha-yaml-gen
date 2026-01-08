@@ -1,8 +1,8 @@
     - name: {{_PACKAGE_}} memory critical
       unique_id: {{_PACKAGE_}}_memory_critical
       variables:
-        MEM_MIN: '{{mem_avail_min_json}}'
-        MEM_WARN: '{{mem_avail_min_warn_json}}'
+        MEM_MIN: '{{mem_avail_min_value}}'
+        MEM_WARN: '{{mem_avail_min_warn_value}}'
       state: "{{ MEM_MIN < MEM_WARN }}"
       availability: >
         "{{ has_value({{ MEM_MIN }})
