@@ -147,7 +147,7 @@ substitute template variables with the required values.
 __Template variable (self.template_variables)__
 
 |template variable|Substitute value|Usage|
-|-|-|
+|-|-|-|
 |\_PACKAGE\_|weather_0|Documentation|
 |\_TIMESTAMP\_|YYYY-MM-DD HH:MM:SS|Documentation|
 |temperature|readings.temperature|JSON sensor value|
