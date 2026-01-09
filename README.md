@@ -132,21 +132,68 @@ gen.generate ()
 
 ## Templates and Cards
 
-|template variable|Substitute value|
+__ha_yaml_gen templating__
+
+ha_yaml_gen has it's own inbuilt templating to
+substitute template variables with the required values.
+
+- The format is __{{TEMP_VAR}}__
+  - 2 left curly braces
+  - TEMP_VAR
+    - No spaces
+    - See table below
+  - 2 right curly braces
+
+__Template variable (self.template_variables)__
+
+|template variable|Substitute value|Usage|
 |-|-|
-|temperature|readings.temperature|
-|temperature_ent|sensor.weather_0_temperature|
-|temperature_id|${states["sensor.weather_0_temperature"].entity_id}|
-|temperature_state|${states["sensor.weather_0_temperature"].state}|
-|temperature_value|states('sensor.weather_0_temperature')|
+|\_PACKAGE\_|weather_0|Documentation|
+|\_TIMESTAMP\_|YYYY-MM-DD HH:MM:SS|Documentation|
+|temperature|readings.temperature|JSON sensor value|
+|temperature_value|states('sensor.weather_0_temperature')|Card value|
+|temperature_ent|sensor.weather_0_temperature|Card entity|
+|temperature_id|${states["sensor.weather_0_temperature"].entity_id}|Gauge Card Pro|
+|temperature_state|${states["sensor.weather_0_temperature"].state}|Gauge Card Pro|
+
 
 ## Notes:
-- Not ready for general release.
+- Not quite ready for general release.
 - Initially built for MQTT input and Gauge Card Pro.
 - Run ha_yaml_gen.py stand alone will create 2 (based on SENSOR_COUNT) example output files:
   - enviro_weather_0_pkg.yaml
   - enviro_weather_1_pkg.yaml
 - This application was originally intended to create HA package files. As of yet, I haven't figured out hou to code packages. Some day? Until then the yaml code can be copy/pasted into the HA configuration file(s).
 - Only the sensor YAML has been implemented.
+- Template and card yaml's are in the works. There are working (maybe) examples in the examples directory.
+  - [HA template](/examples/host_stats.tmpl)
+  - [HA Card](/examples/host_stats.card)
 
-[^outdoorconfig]: Pimironi outdoor config text.
+[^outdoorconfig]: Pimironi outdoor config settings.
+
+  __Only includes entries for mqtt and Home Assistant  
+  enviro config file__
+
+  __This setting prevents the module from going into configuration mode__\
+  provisioned = True
+
+  __enter a nickname for this board\
+  The mqtt published topic will be 'enviro/weather_0'__\
+  nickname = 'weather_0'
+
+  __how often to wake up and take a reading (in minutes)__\
+  reading_frequency = 5
+
+  __Send updates via mqtt__\
+  destination = 'mqtt'
+
+  __how often to upload data (number of cached readings)\
+  Always set to 1\
+  HA only uses the received time for graphing, only send 1 reading at a time__\
+  upload_frequency = 1
+
+  __mqtt broker settings\
+  Needs to match HA MQTT setup parameters__\
+  mqtt_broker_address = '192.168.0.XXX'  
+  mqtt_broker_username = 'HAusername'  
+  mqtt_broker_password = 'HApassword'

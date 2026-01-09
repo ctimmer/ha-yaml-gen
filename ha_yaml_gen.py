@@ -138,8 +138,8 @@ class HaYamlGen :
 
     def card_pro_sensor_vars (self) : #, suffix="_0") :
         package_id = self.package_data ["package"]
-        self.template_variables = {"_PACKAGE_" : package_id}
-        self.template_variables = {"_TIMESTAMP_" : self.package_data ["timestamp"]}
+        self.template_variables = {"_PACKAGE_" : package_id ,
+                                    "_TIMESTAMP_" : self.package_data ["timestamp"]}
         dest_dict = self.template_variables
         for _, (sensor_name, sensor_data) in enumerate (self.sensor_ids.items ()) :
             dest_dict [sensor_name] = sensor_data ["entity"]    # json ref
