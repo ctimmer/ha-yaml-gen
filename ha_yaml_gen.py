@@ -50,9 +50,7 @@ template:
   - sensor:
 '''
 
-
 TMPL_VAR_RE = r"\{\{\w+\}\}"
-
 
 MQTT_SENSOR_BASIC = \
 '''

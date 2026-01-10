@@ -1,4 +1,29 @@
 #
+################################################################################
+# The MIT License (MIT)
+#
+# Copyright (c) 2026 Curt Timmerman
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+################################################################################
+#
+
 import time
 from datetime import datetime
 import socket
@@ -7,20 +32,10 @@ import json
 import paho.mqtt.publish as publish
 import psutil
 
+# Host details
 HOSTNAME = socket.gethostname ()
 HOSTID = "host_stats_3"
 HOSTID = "host_stats_backupserver"
-CPU_TEMP_PATH = "/sys/devices/virtual/thermal/thermal_zone0/temp"
-CPU_FREQ_PATH = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
-CPU_TEMP_WARN = None
-FAN_PATH = "/sys/class/thermal/cooling_device0/cur_state"
-MEMORY_TOT = None
-MEMORY_AVAIL_WARN = None
-MEMORY_PATH = "/proc/meminfo"
-
-DISK_TOTAL = None
-DISK_WARN_LEVEL = None
-DISK_CRITICAL_LEVEL = None
 
 # MQTT Broker details
 BROKER_ADDRESS = "localhost"    # Replace with your broker's IP or hostname
@@ -34,9 +49,21 @@ HA_PASSWORD = "hapassword"
 CAPTURE_INTERVAL = 1        # sample seconds
 REPORT_INTERVAL = 10        # report seconds
 
+CPU_TEMP_PATH = "/sys/devices/virtual/thermal/thermal_zone0/temp"
+CPU_FREQ_PATH = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
+CPU_TEMP_WARN = None
+FAN_PATH = "/sys/class/thermal/cooling_device0/cur_state"
+MEMORY_TOT = None
+MEMORY_AVAIL_WARN = None
+MEMORY_PATH = "/proc/meminfo"
+
+DISK_TOTAL = None
+DISK_WARN_LEVEL = None
+DISK_CRITICAL_LEVEL = None
+
 next_report_time = None
-stat_data = None
-stat_data_aux = None
+mqtt_payload = None
+mqtt_payload_aux = None
 
 MEMORY_STAT_LIST = {
     "MemTotal:" : "mem_tot" ,
@@ -95,7 +122,7 @@ def get_cpu_times():
     return sum(cpu_times), cpu_times[3] # total_time, idle_time
 
 def add_disk_stats () :
-    global stat_data
+    global mqtt_payload
     global DISK_TOTAL
     global DISK_WARN_LEVEL
     global DISK_CRITICAL_LEVEL
@@ -104,18 +131,18 @@ def add_disk_stats () :
         DISK_TOTAL =  disk_info.total // (1024**3)
         DISK_WARN_LEVEL = int (DISK_TOTAL * 0.70)
         DISK_CRITICAL_LEVEL = int (DISK_TOTAL * 0.85)
-    stat_data ["disk_total"] = DISK_TOTAL
-    stat_data ["disk_used"]  = disk_info.used // (1024**3)
-    stat_data ["disk_free"] = disk_info.free // (1024**3)
-    stat_data ["disk_warn_level"] = DISK_WARN_LEVEL
-    stat_data ["disk_critical_level"] = DISK_CRITICAL_LEVEL
+    mqtt_payload ["disk_total"] = DISK_TOTAL
+    mqtt_payload ["disk_used"]  = disk_info.used // (1024**3)
+    mqtt_payload ["disk_free"] = disk_info.free // (1024**3)
+    mqtt_payload ["disk_warn_level"] = DISK_WARN_LEVEL
+    mqtt_payload ["disk_critical_level"] = DISK_CRITICAL_LEVEL
 
 def init_stats (stats) :
-    global stat_data
-    global stat_data_aux
+    global mqtt_payload
+    global mqtt_payload_aux
     global HOSTNAME
     global MEMORY_AVAIL_WARN
-    stat_data = {
+    mqtt_payload = {
         "hostname" : HOSTNAME ,
         "datetime" : None ,
         "cpu_temp_min" : stats["cpu_temp"] ,
@@ -142,7 +169,7 @@ def init_stats (stats) :
         "disk_total" : 0 ,
         "readings" : 1
         }
-    stat_data_aux = {
+    mqtt_payload_aux = {
         "cpu_temp_tot" : stats["cpu_temp"] ,
         "cpu_freq_tot" : stats["cpu_freq"] ,
         "cpu_total_time" : [0, 0] ,
@@ -151,34 +178,34 @@ def init_stats (stats) :
         "cpu_curr_idle_time" : 0 ,
         "mem_avail_tot" : stats ["mem_avail"]
         }
-    stat_data_aux ["cpu_total_time"][0], stat_data_aux ["cpu_idle_time"][0] \
+    mqtt_payload_aux ["cpu_total_time"][0], mqtt_payload_aux ["cpu_idle_time"][0] \
         = get_cpu_times ()
-    stat_data_aux ["cpu_curr_total_time"] \
-        = stat_data_aux ["cpu_total_time"][0]
-    stat_data_aux ["cpu_curr_idle_time"] \
-        = stat_data_aux ["cpu_idle_time"][0]
+    mqtt_payload_aux ["cpu_curr_total_time"] \
+        = mqtt_payload_aux ["cpu_total_time"][0]
+    mqtt_payload_aux ["cpu_curr_idle_time"] \
+        = mqtt_payload_aux ["cpu_idle_time"][0]
 
 def report_stats (stats) :
-    global stat_data
-    stat_data ["datetime"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if stat_data ["readings"] > 1 :
-        stat_data ["cpu_temp_avg"] = stat_data_aux ["cpu_temp_tot"] \
-                                        // stat_data ["readings"]
-        stat_data ["cpu_freq_avg"] = stat_data_aux ["cpu_freq_tot"] \
-                                        // stat_data ["readings"]
-        stat_data ["mem_avail_avg"] = stat_data_aux ["mem_avail_tot"] \
-                                        // stat_data ["readings"]
-    stat_data_aux ["cpu_total_time"][1], stat_data_aux ["cpu_idle_time"][1] \
+    global mqtt_payload
+    mqtt_payload ["datetime"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if mqtt_payload ["readings"] > 1 :
+        mqtt_payload ["cpu_temp_avg"] = mqtt_payload_aux ["cpu_temp_tot"] \
+                                        // mqtt_payload ["readings"]
+        mqtt_payload ["cpu_freq_avg"] = mqtt_payload_aux ["cpu_freq_tot"] \
+                                        // mqtt_payload ["readings"]
+        mqtt_payload ["mem_avail_avg"] = mqtt_payload_aux ["mem_avail_tot"] \
+                                        // mqtt_payload ["readings"]
+    mqtt_payload_aux ["cpu_total_time"][1], mqtt_payload_aux ["cpu_idle_time"][1] \
         = get_cpu_times ()
-    if stat_data_aux ["cpu_total_time"][1] \
-        > stat_data_aux ["cpu_total_time"][0] :
-        cpu_total = stat_data_aux ["cpu_total_time"][1] \
-                    - stat_data_aux ["cpu_total_time"][0]
-        cpu_idle = stat_data_aux ["cpu_idle_time"][1] \
-                    - stat_data_aux ["cpu_idle_time"][0]
-        stat_data ["cpu_load"]  = (((cpu_total - cpu_idle) * 100) // cpu_total)
-    #print ("aux:",stat_data_aux)
-    #print ("Sending:", stat_data)
+    if mqtt_payload_aux ["cpu_total_time"][1] \
+        > mqtt_payload_aux ["cpu_total_time"][0] :
+        cpu_total = mqtt_payload_aux ["cpu_total_time"][1] \
+                    - mqtt_payload_aux ["cpu_total_time"][0]
+        cpu_idle = mqtt_payload_aux ["cpu_idle_time"][1] \
+                    - mqtt_payload_aux ["cpu_idle_time"][0]
+        mqtt_payload ["cpu_load"]  = (((cpu_total - cpu_idle) * 100) // cpu_total)
+    #print ("aux:",mqtt_payload_aux)
+    #print ("Sending:", mqtt_payload)
     add_disk_stats ()
     try:
         if True :
@@ -186,8 +213,8 @@ def report_stats (stats) :
             print ("host/port", BROKER_ADDRESS, BROKER_PORT)
             print ("topic", TOPIC)
             print ("username/password", HA_USERNAME, HA_PASSWORD)
-            print ("payload", stat_data)
-        payload = json.dumps (stat_data)
+            print ("payload", mqtt_payload)
+        payload = json.dumps (mqtt_payload)
         # Publish a single message
         ret = publish.single (TOPIC ,
                         payload = payload ,
@@ -202,54 +229,54 @@ def report_stats (stats) :
     init_stats (stats)
 
 def update_reading (stats) :
-    global stat_data
+    global mqtt_payload
     # CPU temperature
-    if stats["cpu_temp"] > stat_data ["cpu_temp_max"] :
-        stat_data ["cpu_temp_max"] = stats["cpu_temp"]
-    elif stats["cpu_temp"] < stat_data ["cpu_temp_min"] :
-        stat_data ["cpu_temp_min"] = stats["cpu_temp"]
-    stat_data_aux ["cpu_temp_tot"] += stats["cpu_temp"]
+    if stats["cpu_temp"] > mqtt_payload ["cpu_temp_max"] :
+        mqtt_payload ["cpu_temp_max"] = stats["cpu_temp"]
+    elif stats["cpu_temp"] < mqtt_payload ["cpu_temp_min"] :
+        mqtt_payload ["cpu_temp_min"] = stats["cpu_temp"]
+    mqtt_payload_aux ["cpu_temp_tot"] += stats["cpu_temp"]
 
     # CPU Load
     cpu_total_time, cpu_idle_time = get_cpu_times ()
-    cpu_total = cpu_total_time - stat_data_aux ["cpu_curr_total_time"]
+    cpu_total = cpu_total_time - mqtt_payload_aux ["cpu_curr_total_time"]
     if cpu_total > 0 :
-        cpu_idle = cpu_idle_time - stat_data_aux ["cpu_curr_idle_time"]
+        cpu_idle = cpu_idle_time - mqtt_payload_aux ["cpu_curr_idle_time"]
         cpu_load  = (((cpu_total - cpu_idle) * 100) // cpu_total)
-        if stat_data ["cpu_load_min"] is None :
-            stat_data ["cpu_load_min"] = cpu_load
-            stat_data ["cpu_load_max"] = cpu_load
-        elif cpu_load < stat_data ["cpu_load_min"] :
-            stat_data ["cpu_load_min"] = cpu_load
-        elif cpu_load > stat_data ["cpu_load_max"] :
-            stat_data ["cpu_load_max"] = cpu_load
-        stat_data_aux ["cpu_curr_total_time"] = cpu_total_time
-        stat_data_aux ["cpu_curr_idle_time"] = cpu_idle_time
+        if mqtt_payload ["cpu_load_min"] is None :
+            mqtt_payload ["cpu_load_min"] = cpu_load
+            mqtt_payload ["cpu_load_max"] = cpu_load
+        elif cpu_load < mqtt_payload ["cpu_load_min"] :
+            mqtt_payload ["cpu_load_min"] = cpu_load
+        elif cpu_load > mqtt_payload ["cpu_load_max"] :
+            mqtt_payload ["cpu_load_max"] = cpu_load
+        mqtt_payload_aux ["cpu_curr_total_time"] = cpu_total_time
+        mqtt_payload_aux ["cpu_curr_idle_time"] = cpu_idle_time
 
     # CPU frequency
-    if stats["cpu_freq"] > stat_data ["cpu_freq_max"] :
-        stat_data ["cpu_freq_max"] = stats["cpu_freq"]
-    elif stats["cpu_freq"] < stat_data ["cpu_freq_min"] :
-        stat_data ["cpu_freq_min"] = stats["cpu_freq"]
-    stat_data_aux ["cpu_freq_tot"] += stats["cpu_freq"]
+    if stats["cpu_freq"] > mqtt_payload ["cpu_freq_max"] :
+        mqtt_payload ["cpu_freq_max"] = stats["cpu_freq"]
+    elif stats["cpu_freq"] < mqtt_payload ["cpu_freq_min"] :
+        mqtt_payload ["cpu_freq_min"] = stats["cpu_freq"]
+    mqtt_payload_aux ["cpu_freq_tot"] += stats["cpu_freq"]
     # Memory
-    if stats["mem_avail"] > stat_data ["mem_avail_max"] :
-        stat_data ["mem_avail_max"] = stats["mem_avail"]
-    elif stats["mem_avail"] < stat_data ["mem_avail_min"] :
-        stat_data ["mem_avail_min"] = stats["mem_avail"]
-    if stats["mem_used"] > stat_data ["mem_used_max"] :
-        stat_data ["mem_used_max"] = stats["mem_used"]
-    elif stats["mem_used"] < stat_data ["mem_used_min"] :
-        stat_data ["mem_used_min"] = stats["mem_used"]
-    stat_data_aux ["mem_avail_tot"] += stats["mem_avail"]
-    stat_data ["swap_tot"] = stats ["swap_tot"]
-    stat_data ["swap_free"] = stats ["swap_free"]
-    stat_data ["swap_used"] = stats ["swap_used"]
+    if stats["mem_avail"] > mqtt_payload ["mem_avail_max"] :
+        mqtt_payload ["mem_avail_max"] = stats["mem_avail"]
+    elif stats["mem_avail"] < mqtt_payload ["mem_avail_min"] :
+        mqtt_payload ["mem_avail_min"] = stats["mem_avail"]
+    if stats["mem_used"] > mqtt_payload ["mem_used_max"] :
+        mqtt_payload ["mem_used_max"] = stats["mem_used"]
+    elif stats["mem_used"] < mqtt_payload ["mem_used_min"] :
+        mqtt_payload ["mem_used_min"] = stats["mem_used"]
+    mqtt_payload_aux ["mem_avail_tot"] += stats["mem_avail"]
+    mqtt_payload ["swap_tot"] = stats ["swap_tot"]
+    mqtt_payload ["swap_free"] = stats ["swap_free"]
+    mqtt_payload ["swap_used"] = stats ["swap_used"]
     # Other
-    stat_data ["readings"] += 1
+    mqtt_payload ["readings"] += 1
 
 def init (stats) :
-    global stat_data
+    global mqtt_payload
     global TOPIC
     global CPU_TEMP_WARN
     global MEMORY_TOT
@@ -277,7 +304,7 @@ def get_ip () :
         return "?.?.?.?"
 
 def main():
-    global stat_data
+    global mqtt_payload
     global next_report_time
     print (get_ip())
     stats = get_stats ()

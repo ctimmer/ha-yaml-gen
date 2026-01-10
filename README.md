@@ -3,6 +3,7 @@ Home Assistant sensor/template YAML generator
 
 ## Purpose
 Generate multiple sensor code from sample sensor output JSON text.
+Currently set up for mosquitto [^mqtt_config] message queuing.
 
 ## Usage
 
@@ -65,7 +66,7 @@ exclude_sensor and include_sensor must be called before this function.
 
 The JSON example is from a Pimoroni enviro outdoor. [^outdoorconfig]
 
-### Setting the sensor name formats
+### Setting the sensor naming formats
 
 ```python
 PACKAGE_IDX_START = 0
@@ -144,17 +145,19 @@ substitute template variables with the required values.
     - See table below
   - 2 right curly braces
 
-__Template variable (self.template_variables)__
+__Template variables (self.template_variables)__
+
+Examples from weather_0 temperature.
 
 |template variable|Substitute value|Usage|
 |-|-|-|
-|\_PACKAGE\_|weather_0|Documentation|
-|\_TIMESTAMP\_|YYYY-MM-DD HH:MM:SS|Documentation|
-|temperature|readings.temperature|JSON sensor value|
-|temperature_value|states('sensor.weather_0_temperature')|Card value|
-|temperature_ent|sensor.weather_0_temperature|Card entity|
-|temperature_id|${states["sensor.weather_0_temperature"].entity_id}|Gauge Card Pro|
-|temperature_state|${states["sensor.weather_0_temperature"].state}|Gauge Card Pro|
+|{{\_PACKAGE\_}}|weather_0|Documentation|
+|{{\_TIMESTAMP\_}}|YYYY-MM-DD HH:MM:SS|Documentation|
+|{{temperature}}|readings.temperature|JSON sensor value|
+|{{temperature_value}}|states('sensor.weather_0_temperature')|Card value|
+|{{temperature_ent}}|sensor.weather_0_temperature|Card entity|
+|{{temperature_id}}|${states["sensor.weather_0_temperature"].entity_id}|Gauge Card Pro|
+|{{temperature_state}}|${states["sensor.weather_0_temperature"].state}|Gauge Card Pro|
 
 
 ## Notes:
@@ -168,6 +171,17 @@ __Template variable (self.template_variables)__
 - Template and card yaml's are in the works. There are working (maybe) examples in the examples directory.
   - [HA template](/examples/host_stats.tmpl)
   - [HA Card](/examples/host_stats.card)
+
+[^mqtt_config]:
+  The default configuration for MQTT does not allow anonymous connections.
+  I added this file (local.conf) to the /etc/mosquitto/conf.d (linux) directory.
+
+  \# local.conf\
+  \# Allow publishers to send to broker without authentication\
+  \#\
+  listener 1883 0.0.0.0\
+  allow_anonymous true\
+  \# end local.conf
 
 [^outdoorconfig]: Pimironi outdoor config settings.
 
