@@ -28,6 +28,7 @@
 from datetime import datetime
 import io
 import json
+import yaml
 import re
 import pprint
 
@@ -54,47 +55,11 @@ TMPL_VAR_RE = r"\{\{\w+\}\}"
 
 MQTT_SENSOR_BASIC = \
 '''
-    - name: "{{NAME}}"
-      state_topic: "{{STATE_TOPIC}}"
-      value_template: "{{ value_json.{{ENTITY}} }}"
-      unique_id: "{{UNIQUE_ID}}"
+- name: "{{NAME}}"
+  unique_id: "{{UNIQUE_ID}}"
+  state_topic: "{{STATE_TOPIC}}"
+  value_template: "{{ value_json.{{ENTITY}} }}"
 '''
-MQTT_SENSOR_MEASUREMENT = \
-'''
-    - name: "{{NAME}}"
-      state_topic: "{{STATE_TOPIC}}"
-      value_template: "{{ value_json.{{ENTITY}} }}"
-      state_class: "measurement"
-      unique_id: "{{UNIQUE_ID}}"
-'''
-MQTT_SENSOR_TEMPERATURE_C = \
-'''
-    - name: "{{NAME}}"
-      state_topic: "{{STATE_TOPIC}}"
-      value_template: "{{ value_json.{{ENTITY}} }}"
-      state_class: "measurement"
-      unit_of_measurement: "°C"
-      device_class: "temperature"
-      unique_id: "{{UNIQUE_ID}}"
-'''
-MQTT_SENSOR_TEMPERATURE_F = \
-'''
-    - name: "{{NAME}}"
-      state_topic: "{{STATE_TOPIC}}"
-      value_template: "{{ value_json.{{ENTITY}} }}"
-      state_class: "measurement"
-      unit_of_measurement: "°F"
-      device_class: "temperature"
-      unique_id: "{{UNIQUE_ID}}"
-'''
-MQTT_SENSOR_DEFAULT = MQTT_SENSOR_BASIC
-MQTT_SENSOR_TEMPLATES = {
-    "default" : MQTT_SENSOR_DEFAULT ,
-    "min" : MQTT_SENSOR_BASIC ,
-    "meas" : MQTT_SENSOR_MEASUREMENT ,
-    "temp_c" : MQTT_SENSOR_TEMPERATURE_C ,
-    "temp_f" : MQTT_SENSOR_TEMPERATURE_F
-}
 
 ################################################################################
 # class HaYamlGen
@@ -148,7 +113,6 @@ class HaYamlGen :
             dest_dict [sensor_name + "_ent"] = entity
             dest_dict [sensor_name + "_state"] = '${{states["{}"].state}}'.format (entity)
             dest_dict [sensor_name + "_id"] = '${{states["{}"].entity_id}}'.format (entity)
-            dest_dict [sensor_name + "_type"] = sensor_data ["type"]
         #pprint.pprint(self.template_variables, width=2)
 
     def initialize (self) :
@@ -207,6 +171,30 @@ class HaYamlGen :
             return sensor_id
         return path + "." + sensor_id
 
+    def parse_yaml (self ,
+                    yaml_text) :
+        yaml_dict = yaml.safe_load (yaml_text)
+        return yaml_dict
+    def get_yaml (self ,
+                  yaml_dict) :
+        yaml_text = yaml.dump (yaml_dict, allow_unicode=True, sort_keys=False)
+        return yaml_text
+
+    def update_sensor_ids (self ,
+                           sensor_id : str | list,
+                           parameters : dict) :
+        sensor_list = None
+        if isinstance (sensor_id, str) :
+            sensor_list = [sensor_id]
+        elif isinstance (sensor_id, list) :
+            sensor_list = sensor_id
+        else :
+            # error
+            return
+        for _, sensor_name in enumerate (sensor_list) :
+            for _, (yaml_id, yaml_value) in enumerate (parameters.items()) :
+                self.sensor_ids [sensor_name]["type_dict"][0][yaml_id] = yaml_value
+
     def load_sensor_ids (self ,
                         payload : dict ,
                         path : str = "" ,
@@ -218,20 +206,26 @@ class HaYamlGen :
             if not self.sensor_is_included (s_id) :
                 print ("Skipping:", sensor_path)
                 continue
+            parameters = None
             # Handle number and booleans
             if isinstance (s_data, (int, float, bool)) :
                 s_id = self.get_unique_id (s_id)
+                type_dict = self.parse_yaml (MQTT_SENSOR_BASIC)
+                parameters = {
+                    "state_class" : "measurement"
+                    }
                 self.sensor_ids [s_id] = {
                     "entity" : sensor_path ,
-                    "type" : MQTT_SENSOR_MEASUREMENT    # default
+                    "type_dict" : type_dict
                     }
                 sensor_count += 1
             # Handle string and lists
             elif isinstance (s_data, (str, list)) :
                 s_id = self.get_unique_id (s_id)
+                type_dict = self.parse_yaml (MQTT_SENSOR_BASIC)
                 self.sensor_ids [s_id] = {
                     "entity" : sensor_path ,
-                    "type" : MQTT_SENSOR_BASIC    # default for array
+                    "type_dict" : type_dict
                     }
                 sensor_count += 1
             # Handle dictionary
@@ -242,6 +236,8 @@ class HaYamlGen :
             # Skip all other types
             else :
                 pass
+            if parameters is not None :
+                self.update_sensor_ids (s_id, parameters)
         return sensor_count
 
     def load_json_sensor_ids (self, json_text) :
@@ -281,7 +277,6 @@ class HaYamlGen :
 
     def build_package_files (self) :
         package_id = self.package_data ["package"]
-        #self.template_variables = {}
         self.card_pro_sensor_vars ()
         yaml_file_name = package_id + "_pkg.yaml"
         with open (yaml_file_name, "w") as yaml_file :
@@ -291,9 +286,6 @@ class HaYamlGen :
 
     def generate_mqtt_sensors (self, yaml_file) :
         package_id = self.package_data ["package"]
-        #self.card_pro_sensor_vars ()
-        #yaml_file_name = package_id + "_pkg.yaml"
-        #yaml_file = open (yaml_file_name, "w")
         with io.StringIO (MQTT_SENSOR_HEADERS) as t_buff :
             for t_line in t_buff :
                 out_line = self.render_template_line (t_line, self.package_data)
@@ -305,15 +297,21 @@ class HaYamlGen :
                 "UNIQUE_ID" : package_id + "_" + sensor_id ,
                 "STATE_TOPIC" : self.mqtt_topic_base + package_id
                 }
-            sensor_template = self.template_variables [sensor_id + "_type"]
-            with io.StringIO (sensor_template) as s_buff :
+            sensor_dict = self.sensor_ids [sensor_id]["type_dict"]
+            sensor_yaml = self.get_yaml (sensor_dict)
+            yaml_file.write ("\n")
+            with io.StringIO (sensor_yaml) as s_buff :
                 for sensor_line in s_buff :
-                    out_line = self.render_template_line (sensor_line, sensor_vars)
+                    out_line = self.render_template_line (sensor_line,
+                                                          sensor_vars ,
+                                                          indent = "    ")
                     yaml_file.write (out_line)
+
 
     def render_template_line (self ,
                         template : str ,
-                        template_vars : dict = {}) -> str :
+                        template_vars : dict = {} ,
+                        indent : setattr = "") -> str :
         # Template variable substitution function
         def handle_variable (match) :
             var_name = match.group(0)[2:][:-2]  # strip leading '{{' and ending '}}'
@@ -321,10 +319,11 @@ class HaYamlGen :
                 return match.group(0)           # return original text
             return template_vars [var_name]     # return substitute value
         # Return indentation + rendered template
-        return self.yaml_indent + re.sub (self.template_pattern,
-                                            handle_variable,
-                                            template)
+        return indent + re.sub (self.template_pattern,
+                                handle_variable,
+                                template)
 
+    '''
     def add_sensor_type (self,
                         sensor_id : str ,
                         sensor_type : str = "default") :
@@ -335,6 +334,7 @@ class HaYamlGen :
         if type not in MQTT_SENSOR_TEMPLATES :
             type = "default"
         self.sensor_id_list [sensor_id]["type"] = MQTT_SENSOR_TEMPLATES [type]
+    '''
 
     def add_ha_template (self,
                            template_file_name) :
@@ -444,6 +444,10 @@ This will be ignored, use for documentation
     #gen.include_sensor (["model", "uid", "readings.temperature"])
     gen.load_json_sensor_ids (JSON_PAYLOAD_TEXT)
 
+    gen.update_sensor_ids ("temperature" ,
+                            {"state_class" : "measurement" ,
+                            "unit_of_measurement" : "°F" ,
+                            "device_class" : "temperature"})
     if True :
         gen.build_range_list (start = PACKAGE_IDX_START,
                                 count = PACKAGE_COUNT)
