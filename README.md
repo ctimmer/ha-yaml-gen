@@ -49,10 +49,11 @@ This will be ignored, use for documentation
   "rain": 0,
   "rain_per_second": 0.0,
   "wind_direction": 135},
-"model": "weather"}'''
+"model": "weather"}
+'''
 
 #gen.exclude_sensor (["model", "uid", "readings.luminance"])
-#gen.include_sensor (["model", "uid", "readings", "readings.temperature"])
+#gen.include_sensor (["model", "uid", "readings.temperature"])
 gen.load_json_sensor_ids (JSON_PAYLOAD_TEXT)
 ```
 
@@ -159,6 +160,79 @@ Examples from weather_0 temperature.
 |{{temperature_id}}|${states["sensor.weather_0_temperature"].entity_id}|Gauge Card Pro|
 |{{temperature_state}}|${states["sensor.weather_0_temperature"].state}|Gauge Card Pro|
 
+__Note:__ The variable ids do not include the full json sensor path.
+
+## Module Interfaces
+
+__init (package, mqtt_topic_base)__
+
+- Parameters
+  - package
+    - Used to create sensor names and output file names
+    - Example: "weather"
+  - mqtt_topic_base
+    - Topic name base used to create the HA mqtt topic
+    - Example: "enviro/"
+
+__include_sensor ([ sensor id list... ])__
+
+- Parameters
+  - Full path of sensors to be included in the generated mqtt sensors
+  - If used, all required sensors must be included in the list
+  - Notes
+    - Must be called before load_json_sensor_* interface
+    - parameter may be a string or list.
+    - This interface can be called multiple times.
+
+__exclude_sensor ([ sensor id list... ])__
+
+- Parameters
+  - Full path of sensors to be excluded in the generated mqtt sensors
+  - Notes
+    - Must be called before load_json_sensor_* interface
+    - parameter may be a string or list.
+    - This interface can be called multiple times.
+    - If include_sensor and exclude_sensor are used, excluded sensors will override.
+
+__load_json_sensor_ids (json_payload)\
+load_json_sensor_file (json_payload_file_name)__
+
+- load_json_sensor_ids loads json text, usually copied from the publisher output.
+- load_json_sensor_file same as above but from file input
+- Notes:
+  - Input before the first "{" and after the last "}" is ignored.
+  - The ignored text can be used for documentation.
+
+__build_range_list (start, count)__
+- Parameters
+  - start Starting suffix index
+  - count number of suffixes to add to list
+- Determines how many sensor group yaml's will be generated
+- Example output list: "_0", "_1", "_2" ...
+
+__build_id_list (ids)__
+- Parameters
+  - ids List of suffix ids to add to suffix list
+- Determines how many sensor group yaml's will be generated
+- Id's will be prepended with "_"
+- Example output list: "_kitchen", "_bedroom" ...
+
+__add_ha_template (file_name)__
+
+- Parameters
+  - file_name HA template file name.
+- Output will be included in the sensor yaml file.
+
+__add_card_template (file_name, suffix)__
+
+- Parameters
+  - file_name Template card file name.
+  - suffix Used to make output yaml card file names unique.
+- More than 1 card template can be used. A different card yaml could be generated multiple displays. For example: display cards for the desktop, a tablet, and a phone. 
+
+__generate ()__
+
+- Generates output HA yaml file(s).
 
 ## Notes:
 - Not quite ready for general release.

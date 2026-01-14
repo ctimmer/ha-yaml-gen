@@ -323,19 +323,6 @@ class HaYamlGen :
                                 handle_variable,
                                 template)
 
-    '''
-    def add_sensor_type (self,
-                        sensor_id : str ,
-                        sensor_type : str = "default") :
-        if sensor_id not in self.sensor_id_list :
-            print ("No sensor", sensor_id)
-            return
-        type = sensor_type
-        if type not in MQTT_SENSOR_TEMPLATES :
-            type = "default"
-        self.sensor_id_list [sensor_id]["type"] = MQTT_SENSOR_TEMPLATES [type]
-    '''
-
     def add_ha_template (self,
                            template_file_name) :
         template_text = None
