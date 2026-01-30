@@ -1,0 +1,30 @@
+type: vertical-stack
+cards:
+  - type: markdown
+    #content: >+
+      #{{ states('sensor.indoor_kitchen_nickname') }} - As of: {{
+      #states('sensor.indoor_kitchen_timestamp') }}
+    content: >+
+      {{ {{nickname_value}} }} - As of: {{
+      {{timestamp_value}} }}
+
+    text_only: true
+  - type: horizontal-stack
+    cards:
+      - type: gauge
+        #entity: sensor.indoor_kitchen_temperature_farenheit
+        entity: {{temperature_ent}}_farenheit
+        max: 100
+        unit: F
+        name: Temperature
+      - type: gauge
+        #entity: sensor.indoor_kitchen_humidity
+        entity: {{humidity_ent}}
+        min: 0
+        unit: "%"
+        name: Humidity
+      - type: gauge
+        #entity: sensor.indoor_kitchen_gas_resistance
+        entity: {{gas_resistance_ent}}
+        name: Air Quality
+

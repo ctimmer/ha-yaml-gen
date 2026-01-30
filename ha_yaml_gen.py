@@ -32,30 +32,30 @@ import yaml
 import re
 import pprint
 
+PACKAGE_HEADERS = \
+'''{{package}}:
+#### Generated: {{timestamp}}
+'''
 MQTT_SENSOR_HEADERS = \
 '''
-
 ###### Begin: {{package}} Sensors ######
-######    At: {{timestamp}}
 # MQTT SENSORS
 mqtt:
   sensor:
 '''
 TEMPLATE_SENSOR_HEADERS = \
 '''
-
 ###### Begin: {{package}} Templates ######
-######    At: {{timestamp}}
-# TEMPLATES
 template:
-  - sensor:
 '''
 
-TMPL_VAR_RE = r"\{\{\w+\}\}"
+TMPL_VAR_RE = r"\{\{\w+\}\}"    # a-z A-z 0-9 _
+
 
 MQTT_SENSOR_BASIC = \
 '''
 - name: "{{NAME}}"
+  #friendly_name: "{{FRIENDLY_NAME}}"
   unique_id: "{{UNIQUE_ID}}"
   state_topic: "{{STATE_TOPIC}}"
   value_template: "{{ value_json.{{ENTITY}} }}"
@@ -74,6 +74,7 @@ class HaYamlGen :
         self.package = package
         self.package_items = []
         self.package_data = None
+        self.package_indent = ""
         self.mqtt_topic_base = mqtt_topic_base
         self.template_variables = {}
         self.sensor_include_list = None
@@ -81,25 +82,25 @@ class HaYamlGen :
         self.template_pattern = template_pattern
         self.yaml_indent = ""
         self.sensor_ids = {}
-        self.sensor_id_list = None
-        self.card_templates = None
-        self.ha_templates = None
+        self.sensor_id_list = {}
+        self.card_templates = None      # Optional
+        self.ha_templates = None        # Optional
 
     def get_unique_id (self, sensor_name) :
         if sensor_name not in self.sensor_id_list :
             self.sensor_id_list[sensor_name] = {
                 "count" : 0
                 }
-            return sensor_name
+            return sensor_name          # first time
         self.sensor_id_list[sensor_name]["count"] += 1
-        #print (self.sensor_id_list)
+        # generate unique id
         new_name = sensor_name + "_" + str (self.sensor_id_list[sensor_name]["count"])
         self.sensor_id_list[new_name] = {
                 "count" : 0
                 }
         return new_name
 
-    def card_pro_sensor_vars (self) : #, suffix="_0") :
+    def card_pro_sensor_vars (self) :
         package_id = self.package_data ["package"]
         self.template_variables = {"_PACKAGE_" : package_id ,
                                     "_TIMESTAMP_" : self.package_data ["timestamp"]}
@@ -109,15 +110,13 @@ class HaYamlGen :
             entity = "sensor.{}_{}".format (self.package_data ["package"], sensor_name)
             # HA sensor values
             dest_dict [sensor_name + "_value"] = "states('{}')".format (entity)
+            dest_dict [sensor_name + "_unique_id"] = package_id + "_" + sensor_name
+            #"UNIQUE_ID" : package_id + "_" + sensor_id ,
             # Card Pro values
             dest_dict [sensor_name + "_ent"] = entity
             dest_dict [sensor_name + "_state"] = '${{states["{}"].state}}'.format (entity)
             dest_dict [sensor_name + "_id"] = '${{states["{}"].entity_id}}'.format (entity)
-        #pprint.pprint(self.template_variables, width=2)
-
-    def initialize (self) :
-        self.sensor_id_list = {}
-        self.sensor_ids = {}
+        # pprint.pprint(self.template_variables, width=2)
 
     def exclude_sensor (self,
                         sensor_ids : str | list) :
@@ -171,15 +170,18 @@ class HaYamlGen :
             return sensor_id
         return path + "." + sensor_id
 
+    # yaml text to dictionary
     def parse_yaml (self ,
                     yaml_text) :
         yaml_dict = yaml.safe_load (yaml_text)
         return yaml_dict
+    # dictionary to yaml text
     def get_yaml (self ,
                   yaml_dict) :
         yaml_text = yaml.dump (yaml_dict, allow_unicode=True, sort_keys=False)
         return yaml_text
 
+    # add sensor attributes to yaml dictionary
     def update_sensor_ids (self ,
                            sensor_id : str | list,
                            parameters : dict) :
@@ -192,14 +194,19 @@ class HaYamlGen :
             # error
             return
         for _, sensor_name in enumerate (sensor_list) :
+            if sensor_name not in self.sensor_ids :
+                # error
+                continue
             for _, (yaml_id, yaml_value) in enumerate (parameters.items()) :
                 self.sensor_ids [sensor_name]["type_dict"][0][yaml_id] = yaml_value
 
+    # load self.sensor_ids from json payload dictionary
     def load_sensor_ids (self ,
                         payload : dict ,
-                        path : str = "" ,
-                        sensor_count : int = 0) :
+                        path : str = "") -> int :
+                        #sensor_count : int = 0) :
         #print ("payload:", payload, path)
+        sensor_count = 0
         for _, (s_id, s_data) in enumerate (payload.items()) :
             # Set sensor code based on data type
             sensor_path = self.build_sensor_path (s_id, path)
@@ -207,13 +214,14 @@ class HaYamlGen :
                 print ("Skipping:", sensor_path)
                 continue
             parameters = None
-            # Handle number and booleans
+            # Handle numbers and booleans
             if isinstance (s_data, (int, float, bool)) :
                 s_id = self.get_unique_id (s_id)
                 type_dict = self.parse_yaml (MQTT_SENSOR_BASIC)
-                parameters = {
-                    "state_class" : "measurement"
-                    }
+                if isinstance (s_data, (int, float)) :
+                    parameters = {
+                        "state_class" : "measurement"
+                        }
                 self.sensor_ids [s_id] = {
                     "entity" : sensor_path ,
                     "type_dict" : type_dict
@@ -230,9 +238,8 @@ class HaYamlGen :
                 sensor_count += 1
             # Handle dictionary
             elif isinstance (s_data, dict) :
-                sensor_count = self.load_sensor_ids (s_data,
-                                                    sensor_path,
-                                                    sensor_count)
+                sensor_count += self.load_sensor_ids (s_data,
+                                                        sensor_path)
             # Skip all other types
             else :
                 pass
@@ -241,29 +248,38 @@ class HaYamlGen :
         return sensor_count
 
     def load_json_sensor_ids (self, json_text) :
-        self.initialize ()
         # Strip leading/trailing text (documentation)
         start_idx = json_text.find ("{")
         if start_idx < 0 :
             print ("JSON text missing: '{'")
-            return 0
+            return None
         end_idx = json_text.rfind ("}")
         if end_idx < 0 :
             print ("JSON text missing: '}'")
-            return 0
+            return None
+        # parse json text to dictionary
         try :
             json_dict = json.loads (json_text [start_idx:(end_idx + 1)])
         except :
-            print ("JSON parse error")
-            return None
+            print ("JSON parse error:",
+                   json_text [start_idx:(end_idx + 1)])
+            return None             # json parse error
         return self.load_sensor_ids (json_dict)
 
     def load_json_sensor_file (self, json_file_name) :
         json_text = None
-        with open (json_file_name, "r") as json_file :
-            json_text = json_file.read ()
+        try :
+            with open (json_file_name, "r") as json_file :
+                json_text = json_file.read ()
+        except :
+            # errpor
+            return None
         return self.load_json_sensor_ids (json_text)
 
+    # generate :
+    # mqtt sensor yaml
+    # HA template yaml included with sensor yaml (optional)
+    # card yaml(s) (optional)
     def generate (self) :
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for _, package_item in enumerate (self.package_items) :
@@ -272,14 +288,18 @@ class HaYamlGen :
                 "suffix" : package_item ["suffix"] ,
                 "timestamp" : timestamp
                 }
-            #print (self.package_data)
             self.build_package_files ()
 
     def build_package_files (self) :
+        self.package_indent = "  "
         package_id = self.package_data ["package"]
         self.card_pro_sensor_vars ()
         yaml_file_name = package_id + "_pkg.yaml"
         with open (yaml_file_name, "w") as yaml_file :
+            with io.StringIO (PACKAGE_HEADERS) as t_buff :
+                for t_line in t_buff :
+                    out_line = self.render_template_line (t_line, self.package_data)
+                    yaml_file.write (out_line)
             self.generate_mqtt_sensors (yaml_file)
             self.generate_ha_templates (yaml_file)
         self.generate_cards (package_id)
@@ -288,11 +308,13 @@ class HaYamlGen :
         package_id = self.package_data ["package"]
         with io.StringIO (MQTT_SENSOR_HEADERS) as t_buff :
             for t_line in t_buff :
-                out_line = self.render_template_line (t_line, self.package_data)
+                out_line = self.render_template_line (t_line, self.package_data, "")
                 yaml_file.write (out_line)
         for _, (sensor_id,_) in enumerate (self.sensor_id_list.items()) :
+            #print (self.package_data ["suffix"])
             sensor_vars = {
                 "NAME" : package_id + " " + sensor_id ,
+                "FRIENDLY_NAME" : self.package_data ["suffix"][1:] + " " + sensor_id ,
                 "ENTITY" : self.template_variables [sensor_id] ,
                 "UNIQUE_ID" : package_id + "_" + sensor_id ,
                 "STATE_TOPIC" : self.mqtt_topic_base + package_id
@@ -307,24 +329,27 @@ class HaYamlGen :
                                                           indent = "    ")
                     yaml_file.write (out_line)
 
-
+    # substitute template variable with actual value
     def render_template_line (self ,
-                        template : str ,
-                        template_vars : dict = {} ,
-                        indent : setattr = "") -> str :
+                                template : str ,
+                                template_vars : dict = {} ,
+                                indent : str = None) -> str :
+        full_indent = ""
+        if indent is not None :
+            full_indent = indent + self.package_indent
         # Template variable substitution function
-        def handle_variable (match) :
+        def handle_template_variable (match) :
             var_name = match.group(0)[2:][:-2]  # strip leading '{{' and ending '}}'
             if var_name not in template_vars :
                 return match.group(0)           # return original text
             return template_vars [var_name]     # return substitute value
-        # Return indentation + rendered template
-        return indent + re.sub (self.template_pattern,
-                                handle_variable,
-                                template)
+        # Return indentation + rendered template line
+        return full_indent + re.sub (self.template_pattern,
+                                    handle_template_variable,
+                                    template)
 
     def add_ha_template (self,
-                           template_file_name) :
+                        template_file_name) :
         template_text = None
         with open (template_file_name, "r") as t_file :
             template_text = t_file.read ()
@@ -335,20 +360,21 @@ class HaYamlGen :
             })
         #pprint.pprint (self.ha_templates)
         
-    def generate_ha_templates (self, yaml_file) :
+    def generate_ha_templates (self,
+                                yaml_file) -> None :
         if self.ha_templates is None :
             return
         #print ("#######", self.package_data)
         with io.StringIO (TEMPLATE_SENSOR_HEADERS) as t_buff :
             for t_line in t_buff :
-                out_line = self.render_template_line (t_line, self.package_data)
+                out_line = self.render_template_line (t_line, self.package_data, "")
                 yaml_file.write (out_line)
         for ha_idx, ha_data in enumerate (self.ha_templates) :
             with io.StringIO (ha_data["text"]) as t_buff :
                 for t_line in t_buff :
-                    out_line = self.render_template_line (t_line, self.template_variables)
+                    out_line = self.render_template_line (t_line, self.template_variables, "")
                     yaml_file.write (out_line)
-            yaml_file.write ("###### End Templates ######\n")
+            #yaml_file.write ("\n###### End Templates ######\n")
 
     def add_card_template (self,
                            template_file_name,
@@ -380,12 +406,12 @@ class HaYamlGen :
                         out_line = self.render_template_line (card_line, self.template_variables)
                         out_file.write (out_line)
 
+    # Nest 2 functions build a list of suffixes to make multiple sensors yaml unique
     def build_range_list (self, start = 0, count = 1) :
         for range_idx in range (start, (start + count)) :
             self.package_items.append ({
                 "suffix" : "_" + str (range_idx)
                 })
-
     def build_id_list (self, ids) :
         for _,id in enumerate (ids) :
             self.package_items.append ({
@@ -403,7 +429,7 @@ def main () :
     # JSON text edited for readability
     JSON_PAYLOAD_TEXT = \
 '''
-This will be ignored, use for documentation
+This text will be ignored, use for documentation
 {
 "nickname": "weather_0",
 "uid": "e66164084329b22b",
@@ -417,7 +443,8 @@ This will be ignored, use for documentation
   "rain": 0,
   "rain_per_second": 0.0,
   "wind_direction": 135},
-"model": "weather"}'''
+"model": "weather"}
+'''
 
     PACKAGE_ID = "weather"
     MQTT_PATH_BASE = "enviro/"
