@@ -1,0 +1,17 @@
+  # Sensors
+  - sensor:
+    - name: "{{_PACKAGE_}} temperature alert"
+      unique_id: "{{temperature_unique_id}} alert"
+      state: >
+        {% set temperature_f = {{temperature_value}} | float * 1.8 + 32 | default (70.0) %}
+        {{ temperature_f < 50.0 }}
+
+  - sensor:
+    - name: "{{_PACKAGE_}} temperature farenheit"
+      unique_id: "{{temperature_unique_id}} farenheit"
+      state: "{{ {{temperature_value}} | float * 1.8 + 32 | default (70.0) }}"
+
+  - sensor:
+    - name: "{{_PACKAGE_}} pressure inches"
+      unique_id: "{{pressure_unique_id}} inches"
+      state: "{{ ({{pressure_value}} | float / 33.864) | round(2) | default (0.0) }}"
