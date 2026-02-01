@@ -116,7 +116,7 @@ class HaYamlGen :
             dest_dict [sensor_name + "_ent"] = entity
             dest_dict [sensor_name + "_state"] = '${{states["{}"].state}}'.format (entity)
             dest_dict [sensor_name + "_id"] = '${{states["{}"].entity_id}}'.format (entity)
-        # pprint.pprint(self.template_variables, width=2)
+        #pprint.pprint(self.template_variables, width=2)
 
     def exclude_sensor (self,
                         sensor_ids : str | list) :

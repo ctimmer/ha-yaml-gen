@@ -52,8 +52,6 @@ MTTQ_PAYLOAD_TEXT = \
 PACKAGE_ID = "indoor"
 MQTT_TOPIC_BASE = "enviro/"
 
-PACKAGE_IDX_START = 0
-PACKAGE_COUNT = 1
 ROOM_LIST = [
     "kitchen" ,
     "living_room" ,
@@ -72,11 +70,17 @@ ROOM_LIST = [
 gen = HaYamlGen (package = PACKAGE_ID ,
                  mqtt_topic_base = MQTT_TOPIC_BASE)
 
-gen.exclude_sensor (["model", "uid","voltage"])
+gen.exclude_sensor (["model",               # Skip generation of these json values
+                     "uid",
+                     "readings.voltage"])
 
-gen.load_json_sensor_ids (MTTQ_PAYLOAD_TEXT)
+gen.load_json_sensor_ids (MTTQ_PAYLOAD_TEXT)  # Generate sensors template variables
 
-gen.build_id_list (ids=ROOM_LIST)
+if True :
+    gen.build_id_list (ids = ROOM_LIST)     # Room name suffixes
+else :
+    gen.build_range_list (start = 0,        # integer suffixes
+                          count = len (ROOM_LIST))
 
 gen.add_ha_template ("indoor.tmpl")
 gen.add_card_template ("indoor.card")

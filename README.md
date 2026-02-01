@@ -2,7 +2,9 @@
 Home Assistant sensor/template YAML generator
 
 ## Purpose
-Generate multiple sensor code from sample sensor output JSON text.
+Generate multiple sensor code and HA templates yaml files from sample sensor output JSON text
+in a HA package [^hapackage] format.
+Optionally card yaml file(s) [^hacards] can be generated from card templates.
 Currently set up for mosquitto [^mqtt_config] message queuing.
 
 ## Usage
@@ -88,19 +90,23 @@ weather_0_pkg.yaml
 weather_1_pkg.yaml
 
 # Example sensor YAML (from weather_0):
-mqtt:
-  sensor:
+weather_0:
+#### Generated: 2026-01-31 12:48:47
+  
+  ###### Begin: weather_0 Sensors ######
+  # MQTT SENSORS
+  mqtt:
+    sensor:
 
-    - name: "weather_0 nickname"
-      state_topic: "enviro/weather_0"
-      value_template: "{{ value_json.nickname }}"
-      unique_id: "weather_0_nickname"
+      - name: 'weather_0 nickname'
+        unique_id: 'weather_0_nickname'
+        state_topic: 'enviro/weather_0'
+        value_template: '{{ value_json.nickname }}'
 
-    - name: "weather_0 temperature"
-      state_topic: "enviro/weather_0"
-      value_template: "{{ value_json.readings.temperature }}"
-      state_class: "measurement"
-      unique_id: "weather_0_temperature"
+      - name: 'weather_0 uid'
+        unique_id: 'weather_0_uid'
+        state_topic: 'enviro/weather_0'
+        value_template: '{{ value_json.uid }}'
 ```
 __gen.build_id_list__
 
@@ -111,19 +117,23 @@ weather_backdoor_pkg.yaml
 weather_garage_pkg.yaml
 
 # Example sensor YAML (from weather_backdoor):
-mqtt:
-  sensor:
+weather_backdoor:
+#### Generated: 2026-01-31 12:52:35
+  
+  ###### Begin: weather_backdoor Sensors ######
+  # MQTT SENSORS
+  mqtt:
+    sensor:
 
-    - name: "weather_backdoor nickname"
-      state_topic: "enviro/weather_backdoor"
-      value_template: "{{ value_json.nickname }}"
-      unique_id: "weather_backdoor_nickname"
+      - name: 'weather_backdoor nickname'
+        unique_id: 'weather_backdoor_nickname'
+        state_topic: 'enviro/weather_backdoor'
+        value_template: '{{ value_json.nickname }}'
 
-    - name: "weather_backdoor temperature"
-      state_topic: "enviro/weather_backdoor"
-      value_template: "{{ value_json.readings.temperature }}"
-      state_class: "measurement"
-      unique_id: "weather_backdoor_temperature"
+      - name: 'weather_backdoor uid'
+        unique_id: 'weather_backdoor_uid'
+        state_topic: 'enviro/weather_backdoor'
+        value_template: '{{ value_json.uid }}'
 ```
 
 ### Generating the YAML output
@@ -154,6 +164,7 @@ Examples from weather_0 temperature.
 |-|-|-|
 |{{\_PACKAGE\_}}|weather_0|Documentation|
 |{{\_TIMESTAMP\_}}|YYYY-MM-DD HH:MM:SS|Documentation|
+|{{timestamp_unique_id}}|weather_backdoor_timestamp|templates|
 |{{temperature}}|readings.temperature|JSON sensor value|
 |{{temperature_value}}|states('sensor.weather_0_temperature')|Card value|
 |{{temperature_ent}}|sensor.weather_0_temperature|Card entity|
@@ -234,19 +245,73 @@ __generate ()__
 
 - Generates output HA yaml file(s).
 
+## Example applications:
+
+### examples/enviro_indoor_gen.py
+- Generates HA yaml files for Pimironi indoor sensor devices.
+- Input files:
+  - "indoor.tmpl" - Templates are included with package yaml.
+  - "indoor.card" - Generates card file that can be pasted into dashboard card edit.
+
+### examples/host_stats_gen.py
+- Generates HA yaml for input from python application.
+- Files:
+  - host_stats.tmpl
+  - host_stats.card
+  - host_stats.json - optional raspstats.py mqtt json output text.
+  - raspstats.py - Sends host stats (memory, cpu load/temperature, ...) from Raspberry Pi host.
+- Notes:
+  - This is used for testing and may change a lot.
+
 ## Notes:
 - Not quite ready for general release.
 - Initially built for MQTT input and Gauge Card Pro.
 - Run ha_yaml_gen.py stand alone will create 2 (based on SENSOR_COUNT) example output files:
   - enviro_weather_0_pkg.yaml
   - enviro_weather_1_pkg.yaml
-- This application was originally intended to create HA package files. As of yet, I haven't figured out hou to code packages. Some day? Until then the yaml code can be copy/pasted into the HA configuration file(s).
+- This application was originally intended to create HA package files.
 - Only the sensor YAML has been implemented.
 - Template and card yaml's are in the works. There are working (maybe) examples in the examples directory.
   - [HA template](/examples/host_stats.tmpl)
   - [HA Card](/examples/host_stats.card)
 
-[^mqtt_config]:
+## Footnotes
+
+[^hapackage]:
+  __HAconfigdir/configuration.yaml__ :
+
+  \# Loads default set of integrations. Do not remove.
+  default_config:
+
+  \# Load frontend themes from the themes folder\
+  frontend:\
+    themes: !include_dir_merge_named themes\
+
+  automation: !include automations.yaml\
+  script: !include scripts.yaml\
+  scene: !include scenes.yaml\
+  \#sensor: !include mqtt/sensors.yaml\
+  homeassistant:\
+    packages: !include_dir_merge_named packages
+
+  The last 2 lines enable packages.
+  Create the "packages" directory and add the "enviro" sub directory.
+
+  Copy the generated *.yaml files (not any card files) to:
+
+  HAconfigdir/packages/enviro/
+
+  Restart HA or reload the ha YAML files.
+
+[^hacards]:__Card Templates__
+
+  The easiest way to create a card template file is to build the card in a test __dashboard__.\
+  Copy the __Show visual editor__ text to a card template file.\
+  Edit the card template file replacing the sensor references with template variables.\
+  Example card template file: __example/indoor.card__\.
+  The original sensor references have been commented out.
+
+[^mqtt_config]:__mosquitto configuration__\
   The default configuration for MQTT does not allow anonymous connections.
   I added this file (local.conf) to the /etc/mosquitto/conf.d (linux) directory.
 
