@@ -66,7 +66,7 @@ ROOM_LIST = [
     "computer_room" ,
     "crawl_space"
     ]
-ROOM_LIST = ["test"]        # for testing
+#ROOM_LIST = ["test"]        # for testing
 
 gen = HaYamlGen (package = PACKAGE_ID ,
                  mqtt_topic_base = MQTT_TOPIC_BASE)
