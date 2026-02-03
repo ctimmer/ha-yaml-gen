@@ -68,7 +68,7 @@ PACKAGE_ID = "host_stats"
 MQTT_TOPIC_BASE = "hoststats/"
 
 PACKAGE_IDX_START = 0
-PACKAGE_COUNT = 1
+PACKAGE_COUNT = 4
 
 gen = HaYamlGen (package = PACKAGE_ID ,
                  mqtt_topic_base = MQTT_TOPIC_BASE)

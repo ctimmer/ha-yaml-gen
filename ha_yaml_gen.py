@@ -24,13 +24,12 @@
 # THE SOFTWARE.
 ################################################################################
 #
-#import time
 from datetime import datetime
 import io
 import json
 import yaml
 import re
-import pprint
+import pprint       # For testing
 
 PACKAGE_HEADERS = \
 '''{{package}}:
@@ -364,7 +363,6 @@ class HaYamlGen :
                                 yaml_file) -> None :
         if self.ha_templates is None :
             return
-        #print ("#######", self.package_data)
         with io.StringIO (TEMPLATE_SENSOR_HEADERS) as t_buff :
             for t_line in t_buff :
                 out_line = self.render_template_line (t_line, self.package_data, "")

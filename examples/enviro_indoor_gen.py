@@ -34,7 +34,7 @@ MTTQ_PAYLOAD_TEXT = \
 # Pimironi enviro indoor json example
 #
 {
-  "nickname": "living-room-sensor",
+  "nickname": "living_room",
   "model": "indoor",
   "uid": "e6614c775b8c4035",
   "timestamp": "2023-10-27T14:30:00Z",
@@ -66,15 +66,19 @@ ROOM_LIST = [
     "computer_room" ,
     "crawl_space"
     ]
+ROOM_LIST = ["test"]        # for testing
 
 gen = HaYamlGen (package = PACKAGE_ID ,
                  mqtt_topic_base = MQTT_TOPIC_BASE)
 
-gen.exclude_sensor (["model",               # Skip generation of these json values
+gen.exclude_sensor (["model",               # Skip generation of these json sensors
                      "uid",
                      "readings.voltage"])
 
 gen.load_json_sensor_ids (MTTQ_PAYLOAD_TEXT)  # Generate sensors template variables
+
+gen.update_sensor_ids ("timestamp" ,
+                        {"device_class" : "timestamp"})
 
 if True :
     gen.build_id_list (ids = ROOM_LIST)     # Room name suffixes

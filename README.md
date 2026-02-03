@@ -1,5 +1,20 @@
-# ha-yaml-gen
-Home Assistant sensor/template YAML generator
+# ha-yaml-gen Home Assistant sensor/template YAML generator
+
+- [ha-yaml-gen Home Assistant sensor/template YAML generator](#ha-yaml-gen-home-assistant-sensortemplate-yaml-generator)
+  - [Purpose](#purpose)
+  - [Usage](#usage)
+    - [Creating the class object](#creating-the-class-object)
+    - [Loading the JSON payload](#loading-the-json-payload)
+    - [Setting the sensor naming formats](#setting-the-sensor-naming-formats)
+    - [Generating the YAML output](#generating-the-yaml-output)
+  - [Templates and Cards](#templates-and-cards)
+  - [Module Interfaces](#module-interfaces)
+  - [Example applications:](#example-applications)
+    - [examples/enviro\_indoor\_gen.py](#examplesenviro_indoor_genpy)
+    - [examples/host\_stats\_gen.py](#exampleshost_stats_genpy)
+  - [Notes:](#notes)
+  - [Footnotes](#footnotes)
+
 
 ## Purpose
 Generate multiple sensor code and HA templates yaml files from sample sensor output JSON text
