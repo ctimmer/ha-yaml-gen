@@ -29,7 +29,7 @@ import io
 import json
 import yaml
 import re
-import pprint       # For testing
+#import pprint       # For testing
 
 PACKAGE_HEADERS = \
 '''{{package}}:
@@ -120,6 +120,7 @@ class HaYamlGen :
     def exclude_sensor (self,
                         sensor_ids : str | list) :
         # Add sensor id(s) to exclude list
+        exclude_count = 0
         sensor_list = None
         if isinstance (sensor_ids, str) :
             sensor_list = [sensor_ids]          # string input
@@ -127,13 +128,15 @@ class HaYamlGen :
             sensor_list = sensor_ids            # list input
         else :
             # handle error?
-            return 0
+            return exclude_count
         for _, sensor_id in enumerate (sensor_list) :
             sensor_elements = sensor_id.split (".")
             sensor_id = sensor_elements [-1]    # only test the last element
             if sensor_id in self.sensor_exclude_list :
                 continue
             self.sensor_exclude_list.append (sensor_id)
+            exclude_count += 1
+        return exclude_count
     def include_sensor (self,
                         sensor_ids : str | list) :
         # Add sensor id(s) to include list
@@ -329,19 +332,23 @@ class HaYamlGen :
                     yaml_file.write (out_line)
 
     # substitute template variable with actual value
+
     def render_template_line (self ,
                                 template : str ,
-                                template_vars : dict = {} ,
+                                template_vars : dict = None ,
                                 indent : str = None) -> str :
+        temp_vars = template_vars            # substitute template variables
+        if temp_vars is None :
+            temp_vars = {}
         full_indent = ""
         if indent is not None :
             full_indent = indent + self.package_indent
         # Template variable substitution function
         def handle_template_variable (match) :
             var_name = match.group(0)[2:][:-2]  # strip leading '{{' and ending '}}'
-            if var_name not in template_vars :
+            if var_name not in temp_vars :
                 return match.group(0)           # return original text
-            return template_vars [var_name]     # return substitute value
+            return temp_vars [var_name]     # return substitute value
         # Return indentation + rendered template line
         return full_indent + re.sub (self.template_pattern,
                                     handle_template_variable,
@@ -411,9 +418,9 @@ class HaYamlGen :
                 "suffix" : "_" + str (range_idx)
                 })
     def build_id_list (self, ids) :
-        for _,id in enumerate (ids) :
+        for _, id_item in enumerate (ids) :
             self.package_items.append ({
-                "suffix" : "_" + id
+                "suffix" : "_" + id_item
                 })
 
 #
@@ -458,8 +465,19 @@ This text will be ignored, use for documentation
 
     gen.update_sensor_ids ("temperature" ,
                             {"state_class" : "measurement" ,
-                            "unit_of_measurement" : "°F" ,
-                            "device_class" : "temperature"})
+                                        "unit_of_measurement" : "°C" ,
+                                        "device_class" : "temperature"})
+    gen.update_sensor_ids ("humidity" ,
+                            {"state_class" : "measurement" ,
+                                        "unit_of_measurement" : "%" ,
+                                        "device_class" : "humidity"})
+    gen.update_sensor_ids ("pressure" ,
+                            {"state_class" : "measurement" ,
+                                        "unit_of_measurement" : "mbar" ,
+                                        "device_class" : "pressure"})
+    gen.update_sensor_ids ("wind_direction" ,
+                            {"state_class" : "measurement" ,
+                                        "unit_of_measurement" : "°"})
     if True :
         gen.build_range_list (start = PACKAGE_IDX_START,
                                 count = PACKAGE_COUNT)

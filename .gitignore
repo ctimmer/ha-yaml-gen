@@ -1,6 +1,9 @@
 # Byte-compiled / optimized / DLL files
 # my ignores
+.idea/*
 *.yaml
+examples/ha_yaml_gen.py
+examples/*.yaml
 trash/
 
 __pycache__/
